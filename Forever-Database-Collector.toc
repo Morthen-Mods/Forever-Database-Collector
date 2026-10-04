@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Forever Database Collector
+## Notes: Collects quest, NPC, object, item and loot data for the Forever Database.
+## Notes-deDE: Sammelt Quest-, NPC-, Objekt-, Item- und Loot-Daten für die Forever Database.
+## Author: Stein-N
+## Version: 0.1.0
+## SavedVariables: ForeverDatabaseCollectorDB
+## IconTexture: Interface\Icons\INV_Misc_Book_09
+
+Locales.lua
+Core.lua
+Zones.lua
+Items.lua
+Units.lua
+Quests.lua
+Loot.lua
+Export.lua
+Minimap.lua
