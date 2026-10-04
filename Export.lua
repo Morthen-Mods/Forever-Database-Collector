@@ -23,6 +23,8 @@ local function BuildExportString()
             interface = interface,
             locale = GetLocale(),
             realm = GetRealmName(),
+            -- Character + realm + the uploader's browser identify trusted players on the website
+            character = ns.Safe(UnitName("player"), "export.character"),
             started_at = ns.db.pending.started_at,
             exported_at = time(),
         },

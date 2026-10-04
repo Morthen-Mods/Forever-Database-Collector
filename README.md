@@ -52,10 +52,14 @@ Texte stehen in der Sprache des Clients (`meta.locale`).
 FDB1:<Base64(Gzip(JSON))>
 ```
 
+`meta` enthält Realm und Charakternamen (`meta.character`). Zusammen mit der
+Uploader-ID aus dem Browser-Cookie erkennt die Website daran vertrauenswürdige
+Spieler.
+
 ```json
 {
   "format": 1,
-  "meta": { "addon_version": "0.1.0", "build": "70205", "interface": 16001, "locale": "deDE", "realm": "…", "started_at": 0, "exported_at": 0 },
+  "meta": { "addon_version": "0.1.0", "build": "70205", "interface": 16001, "locale": "deDE", "realm": "…", "character": "…", "started_at": 0, "exported_at": 0 },
   "data": { "quests": { "123": { … } }, "npc_spawns": [ { … } ], … }
 }
 ```
