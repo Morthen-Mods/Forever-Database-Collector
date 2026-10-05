@@ -12,6 +12,16 @@ local function CountEntries(value)
     return count
 end
 
+-- Forever names have two parts; UnitFullName returns both, joined as "Name-Part2"
+local function GetFullPlayerName()
+    local name, server = UnitFullName("player")
+    name, server = ns.Safe(name, "export.character"), ns.Safe(server, "export.character.server")
+    if name and server and server ~= "" then
+        return name .. "-" .. server
+    end
+    return name
+end
+
 local function BuildExportString()
     local _, build, _, interface = GetBuildInfo()
     local payload = {
@@ -24,7 +34,7 @@ local function BuildExportString()
             locale = GetLocale(),
             realm = GetRealmName(),
             -- Character + realm + the uploader's browser identify trusted players on the website
-            character = ns.Safe(UnitName("player"), "export.character"),
+            character = GetFullPlayerName(),
             started_at = ns.db.pending.started_at,
             exported_at = time(),
         },
