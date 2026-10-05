@@ -1,60 +1,59 @@
 # Forever Database Collector
 
-Sammelt im Spiel Daten für die Forever Database und exportiert sie als Text,
-den man auf der Website unter `/import` einfügt.
+Collects game data for the Forever Database in-game and exports it as text,
+which you paste into the website under `/import`.
 
-## Installation (Entwicklung)
+## Installation (development)
 
-Den Ordner per Symlink in den AddOns-Ordner des Forever-Clients legen, dann
-reicht nach Änderungen ein `/reload`:
+Symlink the folder into the AddOns folder of the Forever client; after changes
+a `/reload` is enough:
 
 ```
 ln -s "/home/nico/Projekte/Forever Database Website + AddOn/Forever-Database-Collector" \
   "/run/media/nico/Games/Battle.Net/drive_c/Program Files (x86)/World of Warcraft/_classic_beta_/Interface/AddOns/Forever-Database-Collector"
 ```
 
-## Befehle
+## Commands
 
-| Befehl | Wirkung |
+| Command | Effect |
 | --- | --- |
-| `/fdb` | Zeigt, wie viel bisher gesammelt wurde |
-| `/fdb export` | Öffnet den Export-Dialog |
-| `/fdb minimap` | Blendet den Minimap-Button aus bzw. ein |
-| `/fdb debug` | Zeigt Fehler einzelner Sammler im Chat |
+| `/fdb` | Shows how much has been collected so far |
+| `/fdb export` | Opens the export dialog |
+| `/fdb minimap` | Hides or shows the minimap button |
+| `/fdb debug` | Shows errors of individual collectors in chat |
 
-Der Minimap-Button zeigt beim Überfahren dieselben Zahlen wie `/fdb` und öffnet
-bei jedem Klick den Export. Mit gedrückter linker Maustaste lässt er sich um die
-Minimap verschieben.
+Hovering the minimap button shows the same numbers as `/fdb`, and every click
+opens the export. Holding the left mouse button drags it around the minimap.
 
-Nach dem Kopieren im Dialog auf „Kopiert – Daten löschen“ klicken. So enthält
-der nächste Export nur neue Beobachtungen.
+After copying, click "Copied – clear data" in the dialog. That way the next
+export only contains new observations.
 
-## Was gesammelt wird
+## What is collected
 
-| Schlüssel im Export | Quelle im Spiel | Tabelle im Schema |
+| Key in the export | Source in the game | Table in the schema |
 | --- | --- | --- |
-| `zones` | `C_Map.GetMapInfo` | `zones` (über `ui_map_id`) |
-| `quests` | Questfenster und Questlog | `quests`, `quest_texts`, `quest_rewards`, `quest_objectives` |
-| `quest_npcs`, `quest_objects`, `quest_items` | Wer die Quest gibt bzw. annimmt | `quest_npcs`, `quest_objects`, `items.start_quest_id` |
-| `quest_accepts` | Rasse/Klasse/Fraktion beim Annehmen | `quests.required_races`, `required_classes`, `side` |
-| `quest_objective_kills` | Totes Ziel beim Questfortschritt | `quest_objectives.target_id` |
-| `npcs`, `objects` | Ziel, Mouseover, Interaktion | `npcs`, `npc_texts`, `objects`, `object_texts` |
-| `npc_spawns`, `object_spawns` | Spielerposition in Interaktionsreichweite | `npc_spawns`, `object_spawns` |
-| `npc_loot`, `object_loot` | Geöffnete Beute, einmal pro GUID | `npc_loot`, `object_loot` |
-| `npc_vendor_items` | Händlerfenster | `npc_vendor_items` |
+| `zones` | `C_Map.GetMapInfo` | `zones` (via `ui_map_id`) |
+| `quests` | Quest window and quest log | `quests`, `quest_texts`, `quest_rewards`, `quest_objectives` |
+| `quest_npcs`, `quest_objects`, `quest_items` | Who starts or ends the quest | `quest_npcs`, `quest_objects`, `items.start_quest_id` |
+| `quest_accepts` | Race/class/faction when accepting | `quests.required_races`, `required_classes`, `side` |
+| `quest_objective_kills` | Dead target on quest progress | `quest_objectives.target_id` |
+| `npcs`, `objects` | Target, mouseover, interaction | `npcs`, `npc_texts`, `objects`, `object_texts` |
+| `npc_spawns`, `object_spawns` | Player position within interaction range | `npc_spawns`, `object_spawns` |
+| `npc_loot`, `object_loot` | Opened loot, once per GUID | `npc_loot`, `object_loot` |
+| `npc_vendor_items` | Vendor window | `npc_vendor_items` |
 | `items` | `C_Item.GetItemInfo` | `items`, `item_texts` |
 
-Texte stehen in der Sprache des Clients (`meta.locale`).
+Texts are in the client's language (`meta.locale`).
 
-## Exportformat
+## Export format
 
 ```
 FDB1:<Base64(Gzip(JSON))>
 ```
 
-`meta` enthält Realm und Charakternamen (`meta.character`). Zusammen mit der
-Uploader-ID aus dem Browser-Cookie erkennt die Website daran vertrauenswürdige
-Spieler.
+`meta` contains the realm and character name (`meta.character`). Together with
+the uploader ID from the browser cookie, the website uses this to recognize
+trusted players.
 
 ```json
 {
@@ -64,5 +63,5 @@ Spieler.
 }
 ```
 
-Maps verwenden die ID als String-Schlüssel. Leere Tabellen können als `[]`
-oder `{}` ankommen; die Import-Seite sollte beides akzeptieren.
+Maps use the ID as a string key. Empty tables may arrive as `[]` or `{}`; the
+import page should accept both.

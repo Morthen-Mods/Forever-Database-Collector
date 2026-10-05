@@ -1,0 +1,5 @@
+package-as: Forever-Database-Collector
+
+ignore:
+  - CURSEFORGE.md
+  - README.md

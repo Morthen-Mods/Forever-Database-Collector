@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "Forever-Database-Collector.toc"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # push the version tag
 
 concurrency:
   group: release
@@ -14,67 +17,57 @@ concurrency:
 
 env:
   ADDON_NAME: Forever-Database-Collector
+  # BigWigsMods/packager v2
+  PACKAGER_SHA: e50a250f8705041e40f2fa1ddcb280a686d65aa0
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: Determine next version
+      - name: Read version from TOC
         id: version
         run: |
-          TOC_VERSION=$(sed -n 's/^## Version:[[:space:]]*\([0-9.]*\).*/\1/p' "${ADDON_NAME}.toc")
-          LAST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          LAST_VERSION="${LAST_TAG#v}"
+          VERSION=$(sed -n 's/^## Version:[[:space:]]*\([^[:space:]]*\).*/\1/p' "${ADDON_NAME}.toc")
+          if [ -z "$VERSION" ]; then
+            echo "::error::No '## Version:' found in ${ADDON_NAME}.toc"
+            exit 1
+          fi
 
-          if [ -z "$LAST_VERSION" ]; then
-            # No release yet: bump the version from the TOC
-            BASE="$TOC_VERSION"
+          if git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
+            echo "Version ${VERSION} is already released, skipping."
+            echo "release=false" >> "$GITHUB_OUTPUT"
           else
-            BASE="$LAST_VERSION"
+            echo "New version ${VERSION}, releasing."
+            echo "release=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
-          NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
-
-          # If the TOC was raised manually (e.g. 0.2.0), use it as-is
-          if [ -n "$LAST_VERSION" ] && [ "$(printf '%s\n%s\n' "$TOC_VERSION" "$LAST_VERSION" | sort -V | tail -n1)" = "$TOC_VERSION" ] && [ "$TOC_VERSION" != "$LAST_VERSION" ]; then
-            NEXT="$TOC_VERSION"
-          fi
-
-          echo "Last release: ${LAST_VERSION:-none}, TOC: ${TOC_VERSION}, next: ${NEXT}"
-          echo "version=${NEXT}" >> "$GITHUB_OUTPUT"
-
-      - name: Build addon package
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          BUILD_DIR="build/${ADDON_NAME}"
-          mkdir -p "$BUILD_DIR"
-
-          # Copy addon files (everything except repo/CI metadata)
-          rsync -a \
-            --exclude '.git*' \
-            --exclude '.github' \
-            --exclude 'build' \
-            ./ "$BUILD_DIR/"
-
-          # Set version in the packaged TOC
-          sed -i "s/^## Version:.*/## Version: ${VERSION}/" "$BUILD_DIR/${ADDON_NAME}.toc"
-
-          cd build
-          zip -r "${ADDON_NAME}-${VERSION}.zip" "${ADDON_NAME}"
-
-      - name: Create GitHub release
+      - name: Package and upload to CurseForge
+        if: steps.version.outputs.release == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          CF_PROJECT_ID: ${{ vars.CF_PROJECT_ID }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          gh release create "v${VERSION}" \
-            "build/${ADDON_NAME}-${VERSION}.zip" \
-            --target "$GITHUB_SHA" \
-            --title "${ADDON_NAME} ${VERSION}" \
-            --generate-notes
+          if [ -z "$CF_API_KEY" ] || [ -z "$CF_PROJECT_ID" ]; then
+            echo "::error::Secret CF_API_KEY and variable CF_PROJECT_ID must be set"
+            exit 1
+          fi
+
+          # The packager takes the version from the tag on HEAD
+          git tag "v${{ steps.version.outputs.version }}"
+
+          curl -sSfL -o "$RUNNER_TEMP/release.sh" \
+            "https://raw.githubusercontent.com/BigWigsMods/packager/${PACKAGER_SHA}/release.sh"
+
+          # On branch pushes the packager skips a HEAD that already has a tag
+          # (it expects a separate tag-triggered run), so don't report a push.
+          GITHUB_EVENT_NAME=workflow_dispatch bash "$RUNNER_TEMP/release.sh" -p "$CF_PROJECT_ID"
+
+      - name: Push version tag
+        if: steps.version.outputs.release == 'true'
+        run: git push origin "v${{ steps.version.outputs.version }}"
