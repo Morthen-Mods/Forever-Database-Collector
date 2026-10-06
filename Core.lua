@@ -29,6 +29,8 @@ local function NewPending()
         quest_items = {},           -- { quest_id, item_id, role }   (item starts quest)
         quest_accepts = {},         -- { quest_id, race, class, faction, level }
         quest_objective_kills = {}, -- { quest_id, index, npc_id }
+        quest_lines = {},           -- [quest_line_id] = { name, quests }   (only if the client knows it)
+        quest_chain_hints = {},     -- { quest_id, prev_quest_id, rank, seconds, same_giver, offered, seen_before }
 
         npc_spawns = {},            -- { npc_id, ui_map_id, x, y }
         object_spawns = {},         -- { object_id, ui_map_id, x, y }
@@ -87,6 +89,10 @@ loader:SetScript("OnEvent", function(self, _, loadedAddon)
     ns.db = ForeverDatabaseCollectorDB
     ns.db.settings = ns.db.settings or { debug = false }
     if not ns.db.pending then ns:ResetPending() end
+    -- Data collected by an older version lacks newer collections
+    for key, value in pairs(NewPending()) do
+        if ns.db.pending[key] == nil then ns.db.pending[key] = value end
+    end
     ns.db.keys = ns.db.keys or {}
     ns.db.errors = ns.db.errors or {}
     ns.db.secrets = ns.db.secrets or {}

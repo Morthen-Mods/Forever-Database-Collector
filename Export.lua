@@ -163,6 +163,7 @@ function ns:GetStats()
         { label = L.STAT_LOOT, value = #p.npc_loot + #p.object_loot },
         { label = L.STAT_QUEST_GIVERS, value = #p.quest_npcs + #p.quest_objects + #p.quest_items },
         { label = L.STAT_KILL_OBJECTIVES, value = #p.quest_objective_kills },
+        { label = L.STAT_QUEST_CHAINS, value = #p.quest_chain_hints + CountEntries(p.quest_lines) },
         { label = L.STAT_VENDORS, value = CountEntries(p.npc_vendor_items) },
         { label = L.STAT_SECRETS, value = SumCounts(ns.db.secrets), warn = true },
         { label = L.STAT_ERRORS, value = SumCounts(ns.db.errors), warn = true },

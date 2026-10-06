@@ -15,6 +15,7 @@ Zones.lua
 Items.lua
 Units.lua
 Quests.lua
+QuestChains.lua
 Loot.lua
 Export.lua
 Minimap.lua

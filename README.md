@@ -37,6 +37,8 @@ export only contains new observations.
 | `quest_npcs`, `quest_objects`, `quest_items` | Who starts or ends the quest | `quest_npcs`, `quest_objects`, `items.start_quest_id` |
 | `quest_accepts` | Race/class/faction when accepting | `quests.required_races`, `required_classes`, `side` |
 | `quest_objective_kills` | Dead target on quest progress | `quest_objectives.target_id` |
+| `quest_lines` | `C_QuestLine`, only if the client knows the questline | `quests.next_quest_in_chain`, `quest_prerequisites` |
+| `quest_chain_hints` | Quests turned in shortly before accepting (guesswork, see below) | `quests.next_quest_in_chain`, `quest_prerequisites` |
 | `npcs`, `objects` | Target, mouseover, interaction | `npcs`, `npc_texts`, `objects`, `object_texts` |
 | `npc_spawns`, `object_spawns` | Player position within interaction range | `npc_spawns`, `object_spawns` |
 | `npc_loot`, `object_loot` | Opened loot, once per GUID | `npc_loot`, `object_loot` |
@@ -44,6 +46,28 @@ export only contains new observations.
 | `items` | `C_Item.GetItemInfo`, `C_Item.GetItemStats`, item tooltip | `items`, `item_texts`, `item_stats`, `item_damage`, `item_spells`, `item_spell_texts` |
 
 Texts are in the client's language (`meta.locale`).
+
+### Questline clues
+
+The client does not reveal prerequisites, so the addon collects clues per quest
+pair (`quest_id` after `prev_quest_id`):
+
+- when a quest is accepted, with up to three quests turned in during the
+  10 minutes before it (`rank` 1 = the latest)
+- when an NPC offers a quest right after a turn-in there, even if it is never
+  accepted
+
+| Field | Meaning |
+| --- | --- |
+| `strong_hint` | `offered` or `listed_after`: the NPC offers the quest right after the turn-in and did not offer it before. Check these by hand first. |
+| `offered` | The game showed the quest right after the turn-in, without the NPC being opened again. Strong sign of `next_quest_in_chain`. |
+| `listed_after` | The NPC lists the quest when opened within 60 seconds after the turn-in there |
+| `accepted` | The quest was accepted (only then are `rank`, `seconds`, `same_giver` and `seen_before` set) |
+| `same_giver` | Turn-in and new quest at the same NPC or object |
+| `seconds` | Time between turn-in and accept |
+| `seen_before` | The quest was already offered before the turn-in, so the turn-in is **not** its prerequisite |
+
+A single clue proves nothing; only many matching observations should become a link.
 
 ## Export format
 
