@@ -43,9 +43,13 @@ export only contains new observations.
 | `npc_spawns`, `object_spawns` | Player position within interaction range | `npc_spawns`, `object_spawns` |
 | `npc_loot`, `object_loot` | Opened loot, once per GUID | `npc_loot`, `object_loot` |
 | `npc_vendor_items` | Vendor window | `npc_vendor_items` |
-| `items` | `C_Item.GetItemInfo`, `C_Item.GetItemStats`, item tooltip | `items`, `item_texts`, `item_stats`, `item_damage`, `item_spells`, `item_spell_texts` |
+| `items` | `C_Item.GetItemInfo` (base data only) | `items`, `item_texts` |
 
 Texts are in the client's language (`meta.locale`).
+
+Items only get their base data here. Everything else (tooltip, stats, damage,
+effects, sets) comes from Forever-Item-Scraper, which reads every item of the
+client and runs regularly.
 
 ### Questline clues
 

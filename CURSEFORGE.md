@@ -11,7 +11,7 @@ Forever Database Collector quietly records quest, NPC, object, item and loot inf
 - **NPCs & objects** – names, texts and spawn positions
 - **Loot** – what drops from creatures and objects; every corpse you loot is recorded, and reopening the same corpse doesn't count twice
 - **Vendors** – what NPCs sell
-- **Items & zones** – item details including the tooltip (stats, armor, weapon damage, effects) and map information
+- **Items & zones** – basic item details and map information
 - **Minimap button** – hover to see how much you've collected, click to export
 - **English and German** clients supported
 
