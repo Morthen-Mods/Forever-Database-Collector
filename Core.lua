@@ -22,6 +22,7 @@ local function NewPending()
         npcs = {},                  -- [npc_id]    = { name, subname, min_level, max_level, rank, reactions }
         objects = {},               -- [object_id] = { name }
         items = {},                 -- [item_id]   = { name, quality, … }
+        sets = {},                  -- [set_id]    = { name, size, items, bonuses }   (item sets)
         npc_vendor_items = {},      -- [npc_id]    = { { item_id, price }, … }
 
         quest_npcs = {},            -- { quest_id, npc_id, role }

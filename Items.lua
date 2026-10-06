@@ -1,8 +1,8 @@
 -- Forever-Database-Collector/Items.lua
--- Stores the base data of every item that shows up anywhere (loot, quest
--- rewards, vendors). Items the client has not loaded yet are requested.
--- Tooltip data (stats, damage, effects, sets …) comes from
--- Forever-Item-Scraper, which reads every item of the client.
+-- Stores every item that shows up anywhere (loot, quest rewards, vendors):
+-- the data of GetItemInfo and the tooltip values (ItemTooltip.lua), in the
+-- item format of Forever-Item-Scraper. Items the client has not loaded yet
+-- are requested.
 local _, ns = ...
 
 -- Enum.ItemQuality -> values of the item_quality enum in the schema
@@ -18,13 +18,13 @@ local done = {}
 local waiting = {}
 
 local function StoreItem(itemID)
-    local name, _, quality, itemLevel, minLevel, _, _, maxStack, equipLoc, icon,
-        sellPrice, classID, subclassID, bindType, _, _, _, description = C_Item.GetItemInfo(itemID)
+    local name, link, quality, itemLevel, minLevel, className, subclassName, maxStack, equipLoc, icon,
+        sellPrice, classID, subclassID, bindType, expansionID, setID, craftingReagent, description = C_Item.GetItemInfo(itemID)
     if not ns.Safe(name, "item.name") then return false end
 
     quality = ns.Safe(quality, "item.quality")
     bindType = ns.Safe(bindType, "item.bonding")
-    ns.Merge(ns.GetEntry("items", itemID), {
+    local entry = ns.Merge(ns.GetEntry("items", itemID), {
         name = name,
         description = description,
         quality = quality and QUALITY[quality],
@@ -32,12 +32,41 @@ local function StoreItem(itemID)
         required_level = minLevel,
         class_id = classID,
         subclass_id = subclassID,
+        class_name = className,         -- localized, e.g. "Rüstung"
+        subclass_name = subclassName,   -- localized, e.g. "Platte"
         inventory_type = equipLoc,      -- e.g. "INVTYPE_HEAD", the website converts it
         icon = icon,                    -- FileDataID
         sell_price = sellPrice,
         max_stack = maxStack,
         bonding = bindType and BONDING[bindType],
+        expansion_id = expansionID,
+        crafting_reagent = craftingReagent,
+        set_id = setID,
+        bag_family = C_Item.GetItemFamily(itemID),  -- bit field of bag types
     }, "item")
+
+    -- A tooltip the addon cannot read must not stop the base data. Its values
+    -- are copied as they are: "" and empty lists mean "no such line".
+    local ok, tooltip, set = pcall(ns.ReadTooltip, itemID, ns.Safe(link, "item.link"), entry)
+    if not ok then
+        ns:LogError("item.tooltip", tooltip)
+    elseif tooltip then
+        for key, value in pairs(tooltip) do entry[key] = value end
+    end
+
+    -- Every member shows the whole set; a set block read from the tooltip
+    -- (it has a size) beats a bare name and is never replaced by one
+    if entry.set_id then
+        local sets = ns.db.pending.sets
+        local key = tostring(entry.set_id)
+        if ok and set and set.size then
+            sets[key] = set
+        elseif not sets[key] then
+            local setName = (ok and set and set.name) or ns.Safe(C_Item.GetItemSetInfo(entry.set_id), "item.set.name")
+            if setName and setName ~= "" then sets[key] = { name = setName } end
+        end
+    end
+
     done[itemID] = true
     return true
 end

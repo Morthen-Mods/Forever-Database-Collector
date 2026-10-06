@@ -3,7 +3,7 @@
 ## Notes: Collects quest, NPC, object, item and loot data for the Forever Database.
 ## Notes-deDE: Sammelt Quest-, NPC-, Objekt-, Item- und Loot-Daten für die Forever Database.
 ## Author: Stein-N
-## Version: 0.2.0
+## Version: 0.2.5
 ## SavedVariables: ForeverDatabaseCollectorDB
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 
@@ -12,6 +12,7 @@
 Locales.lua
 Core.lua
 Zones.lua
+ItemTooltip.lua
 Items.lua
 Units.lua
 Quests.lua
