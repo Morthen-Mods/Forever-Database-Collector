@@ -50,7 +50,8 @@ ns:RegisterEvent("LOOT_OPENED", function()
                 table.insert(ns.db.pending.npc_loot, { npc_id = id, ui_map_id = uiMapID, items = items })
             else
                 table.insert(ns.db.pending.object_loot, { object_id = id, ui_map_id = uiMapID, items = items })
-                ns.GetEntry("objects", id)  -- only the website knows the name (objects are not units)
+                ns.GetEntry("objects", id)  -- the name comes from the soft target (Units.lua) or the website
+                ns.lastObject = { id = id, time = GetTime() }  -- for object objectives (Quests.lua)
                 -- For objects the player stands right in front of it -> usable spawn point
                 ns.RecordObjectSpawn(id, guid)
             end

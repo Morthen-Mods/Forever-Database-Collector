@@ -1,7 +1,8 @@
 -- Forever-Database-Collector/Quests.lua
 -- Quest texts, quest givers and turn-ins, rewards, objectives and who was able
 -- to accept a quest. Provides the data for quests, quest_texts, quest_npcs,
--- quest_objects, quest_rewards and quest_objectives.
+-- quest_objects, quest_rewards and quest_objectives (with the NPC or object an
+-- objective counts).
 local _, ns = ...
 
 local Safe, SafeBool = ns.Safe, ns.SafeBool
@@ -19,6 +20,7 @@ end
 local function RecordGiver(questID, role)
     local kind, id = ns.RecordUnit("npc", true)
     if kind == "npc" then
+        ns.AddNpcService(id, "quest_giver")
         ns.AddUnique("quest_npcs", questID .. ":" .. id .. ":" .. role,
             { quest_id = questID, npc_id = id, role = role })
     elseif kind == "object" then
@@ -41,9 +43,23 @@ local function ReadQuestItems(itemType, count)
     return list
 end
 
-local function RecordRewards(quest)
+-- Spells the quest teaches or casts as a reward (empty = none)
+local function ReadRewardSpells(questID)
+    if not (C_QuestInfoSystem and C_QuestInfoSystem.GetQuestRewardSpells) then return nil end
+    local spells = Safe(C_QuestInfoSystem.GetQuestRewardSpells(questID), "quest.reward_spells")
+    if type(spells) ~= "table" then return nil end
+    local list = {}
+    for _, spellID in ipairs(spells) do
+        spellID = Safe(spellID, "quest.reward_spell")
+        if spellID then table.insert(list, spellID) end
+    end
+    return list
+end
+
+local function RecordRewards(quest, questID)
     quest.rewards = ReadQuestItems("reward", GetNumQuestRewards())
     quest.choices = ReadQuestItems("choice", GetNumQuestChoices())
+    quest.reward_spells = ReadRewardSpells(questID) or quest.reward_spells
     ns.Merge(quest, { reward_money = GetRewardMoney() }, "quest")
 end
 
@@ -61,7 +77,7 @@ ns:RegisterEvent("QUEST_DETAIL", function(questStartItemID)
         details = GetQuestText(),
         objectives = GetObjectiveText(),
     }, "quest")
-    RecordRewards(quest)
+    RecordRewards(quest, questID)
 
     questStartItemID = Safe(questStartItemID, "quest.start_item")
     if questStartItemID and questStartItemID > 0 then
@@ -90,7 +106,7 @@ ns:RegisterEvent("QUEST_COMPLETE", function()
 
     local quest = ns.GetEntry("quests", questID)
     ns.Merge(quest, { title = GetTitleText(), completion_text = GetRewardText() }, "quest")
-    RecordRewards(quest)
+    RecordRewards(quest, questID)
     RecordGiver(questID, "end")
 end)
 
@@ -117,6 +133,16 @@ local function GetLogHeader(logIndex)
             return Safe(info.title, "questlog.header_title")
         end
     end
+end
+
+-- Seconds the quest allows, 0 = no time limit
+local function GetTimeLimit(questID)
+    local total = C_QuestLog.GetTimeAllowed(questID)
+    if ns.IsSecret(total) then
+        ns:CountSecret("quest.time_limit")
+        return nil
+    end
+    return total or 0
 end
 
 local function GetObjectives(questID)
@@ -162,6 +188,8 @@ ns:RegisterEvent("QUEST_ACCEPTED", function(questID)
         is_auto_complete = info and info.isAutoComplete,
         log_header = logIndex and GetLogHeader(logIndex),
         is_repeatable = C_QuestLog.IsRepeatableQuest(questID),
+        is_sharable = C_QuestLog.IsPushableQuest(questID),
+        time_limit = logIndex and GetTimeLimit(questID),
         tag = tagID and QUEST_TAGS[tagID],
         tag_id = tagID,
         is_elite = tagInfo and tagInfo.isElite,
@@ -184,11 +212,11 @@ ns:RegisterEvent("QUEST_ACCEPTED", function(questID)
 end)
 
 -- ---------------------------------------------------------------------------
--- Kill objectives: which NPC counts for which objective?
+-- Kill and object objectives: which NPC or object counts for which objective?
 -- ---------------------------------------------------------------------------
 
 local progress = {}  -- [questID] = { [index] = numFulfilled } (state before the progress)
-local changed = {}   -- [questID] = npcID of the suspected trigger, or false
+local changed = {}   -- [questID] = { npc, object } of the suspected trigger (both may be false)
 local lastHostile    -- { id, time }: last targeted hostile NPC
 
 -- When targeting (usually before the pull, i.e. out of combat) the GUID is
@@ -207,6 +235,15 @@ local function GetKillCandidate()
         if kind == "npc" then return id, "dead_target" end
     end
     if lastHostile and GetTime() - lastHostile.time < 30 then return lastHostile.id, "last_hostile" end
+    return false, "none"
+end
+
+-- The object the player stands at (soft target) or looted just now
+local function GetObjectCandidate()
+    local kind, id = ns.UnitID("softinteract", "objective.soft_guid")
+    if kind == "object" then return id, "soft_target" end
+    local last = ns.lastObject
+    if last and GetTime() - last.time < 10 then return last.id, "last_object" end
     return false, "none"
 end
 
@@ -233,7 +270,7 @@ ns:RegisterEvent("QUEST_ACCEPTED", function(questID)
     questID = Safe(questID, "quest.accepted")
     if not questID then return end
     progress[questID] = Snapshot(questID)
-    changed[questID] = false    -- re-read the objective texts on the next log update
+    changed[questID] = {}    -- re-read the objective texts on the next log update
 end)
 
 -- Fires when a quest objective progresses
@@ -242,21 +279,27 @@ ns:RegisterEvent("QUEST_WATCH_UPDATE", function(questID)
     if not questID then return end
     local npcID, source = GetKillCandidate()
     ns:CountStat("kill.watch." .. source)
-    changed[questID] = npcID
+    changed[questID] = { npc = npcID, object = (GetObjectCandidate()) }
 end)
 
 ns:RegisterEvent("QUEST_LOG_UPDATE", function()
-    for questID, npcID in pairs(changed) do
+    for questID, trigger in pairs(changed) do
         local before = progress[questID]
         local after, objectives = Snapshot(questID)
         RecordObjectives(questID)
-        if npcID and before and after then
+        if before and after then
             for index, objective in ipairs(objectives) do
-                local isMonster = Safe(objective.type, "kill.objective_type") == "monster"
-                if isMonster and (after[index] or 0) > (before[index] or 0) then
-                    ns.AddUnique("quest_objective_kills", questID .. ":" .. index .. ":" .. npcID,
-                        { quest_id = questID, index = index, npc_id = npcID })
-                    ns:CountStat("kill.recorded")
+                local objectiveType = Safe(objective.type, "kill.objective_type")
+                if (after[index] or 0) > (before[index] or 0) then
+                    if objectiveType == "monster" and trigger.npc then
+                        ns.AddUnique("quest_objective_kills", questID .. ":" .. index .. ":" .. trigger.npc,
+                            { quest_id = questID, index = index, npc_id = trigger.npc })
+                        ns:CountStat("kill.recorded")
+                    elseif objectiveType == "object" and trigger.object then
+                        ns.AddUnique("quest_objective_objects", questID .. ":" .. index .. ":" .. trigger.object,
+                            { quest_id = questID, index = index, object_id = trigger.object })
+                        ns:CountStat("objective.object.recorded")
+                    end
                 end
             end
         end

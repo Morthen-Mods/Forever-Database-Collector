@@ -33,13 +33,15 @@ export only contains new observations.
 | Key in the export | Source in the game | Table in the schema |
 | --- | --- | --- |
 | `zones` | `C_Map.GetMapInfo` | `zones` (via `ui_map_id`) |
-| `quests` | Quest window and quest log | `quests`, `quest_texts`, `quest_rewards`, `quest_objectives` |
+| `quests` | Quest window and quest log (texts, level, tag, time limit, sharable, rewards incl. spells, objectives) | `quests`, `quest_texts`, `quest_rewards`, `quest_objectives` |
 | `quest_npcs`, `quest_objects`, `quest_items` | Who starts or ends the quest | `quest_npcs`, `quest_objects`, `items.start_quest_id` |
 | `quest_accepts` | Race/class/faction when accepting | `quests.required_races`, `required_classes`, `side` |
 | `quest_objective_kills` | Dead target on quest progress | `quest_objectives.target_id` |
+| `quest_objective_objects` | Soft-targeted or just looted object on quest progress | `quest_objectives.target_id` |
 | `quest_lines` | `C_QuestLine`, only if the client knows the questline | `quests.next_quest_in_chain`, `quest_prerequisites` |
 | `quest_chain_hints` | Quests turned in shortly before accepting (guesswork, see below) | `quests.next_quest_in_chain`, `quest_prerequisites` |
-| `npcs`, `objects` | Target, mouseover, interaction | `npcs`, `npc_texts`, `objects`, `object_texts` |
+| `npcs`, `objects` | Target, mouseover, interaction, soft target of the interact key | `npcs`, `npc_texts`, `objects`, `object_texts` |
+| `npcs[].services` | NPC windows (vendor, repair, trainer, flight master, bank, inn …) | `npcs.npc_flags` |
 | `npc_spawns`, `object_spawns` | Player position within interaction range | `npc_spawns`, `object_spawns` |
 | `npc_loot`, `object_loot` | Opened loot, once per GUID | `npc_loot`, `object_loot` |
 | `npc_vendor_items` | Vendor window | `npc_vendor_items` |
@@ -47,6 +49,11 @@ export only contains new observations.
 | `sets` | Item set block of the tooltip | `item_sets`, `item_set_texts`, `item_set_bonuses` |
 
 Texts are in the client's language (`meta.locale`).
+
+Objects are no units, so their names and positions are only known from loot,
+quest windows and the soft target of the interact key. With the client option
+for the interact key turned on (CVar `softTargetInteract`), every object the
+player walks up to is recorded.
 
 Items and sets have the same fields as in Forever-Item-Scraper (item format 3,
 see its README); `ItemTooltip.lua` is a copy of its `Tooltip.lua`, keep both

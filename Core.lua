@@ -19,7 +19,7 @@ local function NewPending()
 
         zones = {},                 -- [ui_map_id] = { name, map_type, parent_ui_map_id }
         quests = {},                -- [quest_id]  = { title, details, level, … }
-        npcs = {},                  -- [npc_id]    = { name, subname, min_level, max_level, rank, reactions }
+        npcs = {},                  -- [npc_id]    = { name, subname, min_level, max_level, rank, reactions, services }
         objects = {},               -- [object_id] = { name }
         items = {},                 -- [item_id]   = { name, quality, … }
         sets = {},                  -- [set_id]    = { name, size, items, bonuses }   (item sets)
@@ -30,6 +30,7 @@ local function NewPending()
         quest_items = {},           -- { quest_id, item_id, role }   (item starts quest)
         quest_accepts = {},         -- { quest_id, race, class, faction, level }
         quest_objective_kills = {}, -- { quest_id, index, npc_id }
+        quest_objective_objects = {}, -- { quest_id, index, object_id }
         quest_lines = {},           -- [quest_line_id] = { name, quests }   (only if the client knows it)
         quest_chain_hints = {},     -- { quest_id, prev_quest_id, rank, seconds, same_giver, offered, seen_before }
 
@@ -119,6 +120,7 @@ local function IsSecret(value)
     if type(value) == "table" and issecrettable and issecrettable(value) then return true end
     return false
 end
+ns.IsSecret = IsSecret
 
 -- Counts in and out of combat separately, since the client blocks a lot only in combat
 function ns:CountSecret(context)

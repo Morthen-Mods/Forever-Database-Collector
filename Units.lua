@@ -1,5 +1,5 @@
 -- Forever-Database-Collector/Units.lua
--- NPCs and objects: name, level, rank, reaction, spawn points and vendor wares.
+-- NPCs and objects: name, level, rank, reaction, services, spawn points and vendor wares.
 local _, ns = ...
 
 local Safe, SafeBool = ns.Safe, ns.SafeBool
@@ -82,6 +82,37 @@ function ns.RecordObjectSpawn(id, guid)
     RecordSpawn("object", id, guid)
 end
 
+-- ---------------------------------------------------------------------------
+-- Services: what an NPC offers, named after the npc_flags bits of the schema.
+-- Only services that were seen are stored; a missing one says nothing.
+-- ---------------------------------------------------------------------------
+
+local SERVICES = {}
+for interaction, service in pairs({
+    Gossip = "gossip", QuestGiver = "quest_giver", Merchant = "vendor", Vendor = "vendor",
+    TaxiNode = "flight_master", Trainer = "trainer", Banker = "banker", CharacterBanker = "banker",
+    Registrar = "petitioner", PetitionVendor = "petitioner", GuildTabardVendor = "tabard_designer",
+    SpiritHealer = "spirit_healer", AreaSpiritHealer = "spirit_guide", Binder = "innkeeper",
+    Auctioneer = "auctioneer", StableMaster = "stable_master", BattleMaster = "battlemaster",
+}) do
+    local value = Enum.PlayerInteractionType and Enum.PlayerInteractionType[interaction]
+    if value then SERVICES[value] = service end
+end
+
+function ns.AddNpcService(npcID, service)
+    local npc = ns.GetEntry("npcs", npcID)
+    npc.services = npc.services or {}
+    npc.services[service] = true
+end
+
+-- Fires for every NPC window: vendor, trainer, flight master, bank …
+ns:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", function(interactionType)
+    local service = SERVICES[Safe(interactionType, "npc.interaction")]
+    if not service then return end
+    local kind, id = ns.RecordUnit("npc", true)
+    if kind == "npc" then ns.AddNpcService(id, service) end
+end)
+
 -- Target and mouseover: spawn only when the unit is close (about 10 yards)
 local function OnUnitSeen(unit)
     if not SafeBool(UnitExists(unit), "unit.exists") then return end
@@ -97,6 +128,17 @@ ns:RegisterEvent("UPDATE_MOUSEOVER_UNIT", function() OnUnitSeen("mouseover") end
 local function OnInteract() ns.RecordUnit("npc", true) end
 ns:RegisterEvent("GOSSIP_SHOW", OnInteract)
 ns:RegisterEvent("QUEST_GREETING", OnInteract)
+
+-- Soft target of the interact key: the NPC or object right in front of the
+-- player. Objects are no units otherwise, so this is the only way to learn
+-- their name and position without looting them. Fires only with the client
+-- option for the interact key (CVar softTargetInteract) turned on.
+ns:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED", function(_, newTarget)
+    if not ns.ParseGUID(newTarget, "softinteract.guid") then return end
+    local inRange = SafeBool(UnitIsInInteractRange("softinteract"), "softinteract.range")
+    local kind, id = ns.RecordUnit("softinteract", inRange)
+    if kind == "object" then ns.lastObject = { id = id, time = GetTime() } end
+end)
 
 -- Vendor wares as a complete list (replaces the previous observation).
 -- MERCHANT_UPDATE follows once the client has loaded missing item data.
@@ -119,6 +161,10 @@ local function RecordMerchant()
     end
     if #wares > 0 then
         ns.db.pending.npc_vendor_items[tostring(npcID)] = wares
+    end
+    ns.AddNpcService(npcID, "vendor")
+    if CanMerchantRepair and SafeBool(CanMerchantRepair(), "merchant.repair") then
+        ns.AddNpcService(npcID, "repair")
     end
 end
 
